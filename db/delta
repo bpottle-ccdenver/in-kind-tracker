@@ -1,0 +1,8 @@
+# Ministries table and permissions
+create/ministry.sql
+create/wish_list.sql
+create/organization.sql
+create/individual.sql
+create/donation.sql
+create/permission.sql
+create/role_permission.sql

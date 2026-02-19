@@ -1,0 +1,18 @@
+# User and schema
+# user/in_kind_tracker_app.sql
+
+# Core tables for in-kind-tracker
+create/location.sql
+create/permission.sql
+create/role.sql
+create/role_permission.sql
+create/user.sql
+create/user_session.sql
+create/ministry.sql
+create/wish_list.sql
+create/organization.sql
+create/individual.sql
+create/donation.sql
+create/organization.sql
+# Seed data
+data/initial_admins.sql

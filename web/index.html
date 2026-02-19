@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/img/favicon.png" />
+    <title>In-Kind Tracker</title>
+    <script>
+      (function () {
+        try {
+          var storageKey = "pp_theme";
+          var storedTheme = localStorage.getItem(storageKey);
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var theme = storedTheme === "dark" || (!storedTheme && prefersDark) ? "dark" : "light";
+          var root = document.documentElement;
+          root.classList.remove(theme === "dark" ? "light" : "dark");
+          root.classList.add(theme);
+          root.dataset.theme = theme;
+        } catch (error) {
+          console.warn("Failed to apply persisted theme", error);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

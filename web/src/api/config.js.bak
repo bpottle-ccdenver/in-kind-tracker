@@ -1,0 +1,23 @@
+// src/config.js
+const raw = (import.meta.env?.VITE_API_BASE_URL ?? '').trim();
+const isDev = !!import.meta.env?.DEV;
+
+// Compute a safe base URL.
+// - If VITE_API_BASE_URL is set, use it (no trailing slash).
+// - Otherwise: dev => '/api' (Vite proxy), prod => '<origin>/api' (Nginx proxy).
+function computeBase(rawVal) {
+  if (rawVal) return rawVal.replace(/\/+$/, '');
+  if (isDev) return 'http://localhost:3001/api';
+  return 'http://10.4.23.197/api';
+  if (typeof window !== 'undefined') return `${window.location.origin}/api`;
+  return '/api';
+}
+
+export const API_BASE_URL = computeBase(raw);
+
+// Build a fully-qualified API URL while preserving the /api base path.
+export function apiUrl(path = '') {
+  const base = API_BASE_URL.replace(/\/+$/, '');
+  const suffix = String(path || '').replace(/^\/+/, '');
+  return suffix ? `${base}/${suffix}` : base;
+}
