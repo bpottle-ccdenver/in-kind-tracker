@@ -85,6 +85,15 @@ SELECT format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I', :'app_db', :'app_role
 \gexec
 SQL
 
+echo "Verifying app credentials for '${APP_DB_USER}'..."
+if ! PGPASSWORD="$APP_DB_PASSWORD" psql \
+  -h "$DB_HOST" -p "$DB_PORT" -U "$APP_DB_USER" -d "$DB_NAME" \
+  -v ON_ERROR_STOP=1 -q -t -c "SELECT current_user;" >/dev/null 2>&1; then
+  echo "Error: could not log in as '${APP_DB_USER}' to '${DB_NAME}' with the configured APP_DB_PASSWORD." >&2
+  echo "Hint: ensure admin credentials are correct and rerun setup." >&2
+  exit 1
+fi
+
 if [[ "$BOOTSTRAP_MODE" == "reset" ]]; then
   FULL_FILE="$SCRIPT_DIR/full"
   if [[ ! -f "$FULL_FILE" ]]; then

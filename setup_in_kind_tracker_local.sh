@@ -94,11 +94,24 @@ echo "Installing API + Web dependencies..."
 (cd "$ROOT_DIR" && npm run install:all)
 
 echo "Bootstrapping database (mode=$BOOTSTRAP_MODE)..."
-(
-  cd "$DB_DIR" && \
-  BOOTSTRAP_MODE="$BOOTSTRAP_MODE" \
-  ./setup_db_local.sh
-)
+if [[ "$CODESPACES_MODE" == "true" ]]; then
+  (
+    cd "$DB_DIR" && \
+    ADMIN_HOST="postgres" \
+    ADMIN_PORT="5432" \
+    ADMIN_DB="postgres" \
+    ADMIN_USER="postgres" \
+    ADMIN_PASSWORD="postgres" \
+    BOOTSTRAP_MODE="$BOOTSTRAP_MODE" \
+    ./setup_db_local.sh
+  )
+else
+  (
+    cd "$DB_DIR" && \
+    BOOTSTRAP_MODE="$BOOTSTRAP_MODE" \
+    ./setup_db_local.sh
+  )
+fi
 
 echo
 echo "Setup complete. Start the app with:"
