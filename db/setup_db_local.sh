@@ -58,6 +58,47 @@ psql_app_db_admin() {
     -v ON_ERROR_STOP=1 "$@"
 }
 
+grant_app_privileges() {
+  echo "Granting schema/object privileges to '${APP_DB_USER}' in schema '${SCHEMA_NAME}'..."
+  psql_app_db_admin -v app_role="$APP_DB_USER" -v app_schema="$SCHEMA_NAME" -v admin_role="$ADMIN_USER" <<'SQL'
+SELECT format('CREATE SCHEMA IF NOT EXISTS %I', :'app_schema')
+\gexec
+
+SELECT format('GRANT USAGE, CREATE ON SCHEMA %I TO %I', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER ROLE %I SET search_path = %I, public', :'app_role', :'app_schema')
+\gexec
+
+SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA %I TO %I', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO %I', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I', :'admin_role', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT USAGE, SELECT ON SEQUENCES TO %I', :'admin_role', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT EXECUTE ON FUNCTIONS TO %I', :'admin_role', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I', :'app_role', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT USAGE, SELECT ON SEQUENCES TO %I', :'app_role', :'app_schema', :'app_role')
+\gexec
+
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT EXECUTE ON FUNCTIONS TO %I', :'app_role', :'app_schema', :'app_role')
+\gexec
+SQL
+}
+
 echo "Using admin connection: ${ADMIN_USER}@${ADMIN_HOST}:${ADMIN_PORT}/${ADMIN_DB}"
 echo "Ensuring app role/database exist for '${APP_DB_USER}' on '${DB_NAME}'..."
 
@@ -150,5 +191,7 @@ else
   echo "Applying delta migrations..."
   ENV_FILE="$ENV_FILE" bash "$SCRIPT_DIR/db_migrate.sh"
 fi
+
+grant_app_privileges
 
 echo "Database setup complete."
