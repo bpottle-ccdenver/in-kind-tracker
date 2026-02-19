@@ -2,5 +2,9 @@
 .vscode/
 .idea/
 *.log
-.env
-.env.local
+**/node_modules/
+**/dist/
+**/coverage/
+**/.env
+**/.env.*
+!**/.env.example
