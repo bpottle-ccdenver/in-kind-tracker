@@ -5,32 +5,41 @@ This repository combines the three projects that power In-Kind Tracker:
 - `db` - PostgreSQL schema, migrations, and seed scripts
 - `api` - Express API (port `3001`)
 - `web` - Vite + React frontend (port `5173`)
+- `.devcontainer` - GitHub Codespaces definition with Postgres
 
-## Local Run (single repo)
+## Local setup
 
-1. Ensure PostgreSQL is running and has the `in_kind_tracker` schema/data.
-2. Configure env files:
-   - `api/.env` (see `api/.env.example`)
-   - `db/.env` (optional, only needed for `db` scripts; see `db/.env.example`)
-3. Install dependencies:
-   - `npm run install:all`
-4. Start both API + web:
+1. Ensure PostgreSQL is running.
+2. Run:
+   - `npm run setup:local`
+3. Start the app:
    - `npm run dev`
-5. Open:
+4. Open:
    - `http://localhost:5173`
+
+Default local DB bootstrap mode is `migrate` (non-destructive). To force a fresh DB rebuild:
+- `BOOTSTRAP_MODE=reset npm run setup:local`
+
+## Codespaces setup
+
+1. Open this repository in GitHub Codespaces.
+2. Run:
+   - `npm run setup:codespaces`
+3. Start the app:
+   - `npm run dev:codespaces`
+4. Open port `5173` in Codespaces.
 
 The web dev server proxies `/api/*` requests to `http://localhost:3001`.
 
 ## Common Commands
 
 - `npm run dev` - start API + web together
+- `npm run dev:codespaces` - start API + web for Codespaces (`0.0.0.0` web host)
 - `npm run dev:api` - start API only
 - `npm run dev:web` - start web only
+- `npm run setup:local` - create env files, install deps, bootstrap DB
+- `npm run setup:codespaces` - local setup plus Codespaces DB/service defaults
+- `npm run db:setup` - run DB bootstrap directly (`db/setup_db_local.sh`)
 - `npm run test:api` - run API tests
 - `npm run test:web` - run web tests
 - `npm run db:migrate` - apply DB delta scripts
-
-## Notes
-
-- Nested git repositories inside `api`, `db`, and `web` were removed so this root repo is the only git repository.
-- The DB scripts include a dev app role `in_kind_tracker_app` with password `password` in `db/user/in_kind_tracker_app.sql`.

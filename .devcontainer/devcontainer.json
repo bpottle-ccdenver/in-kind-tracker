@@ -1,0 +1,41 @@
+{
+  "name": "in-kind-tracker",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/in-kind-tracker",
+  "forwardPorts": [3001, 5173, 5432],
+  "portsAttributes": {
+    "3001": {
+      "label": "API"
+    },
+    "5173": {
+      "label": "Web"
+    },
+    "5432": {
+      "label": "Postgres"
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql-client && npm run install:all",
+  "remoteEnv": {
+    "DATABASE_URL": "postgresql://in_kind_tracker_app:password@postgres:5432/in_kind_tracker_db",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "in_kind_tracker_db",
+    "DB_USER": "postgres",
+    "DB_PASSWORD": "postgres",
+    "SCHEMA_NAME": "in_kind_tracker",
+    "APP_DB_USER": "in_kind_tracker_app",
+    "APP_DB_PASSWORD": "password"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

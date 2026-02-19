@@ -4,8 +4,12 @@
   "scripts": {
     "install:all": "npm --prefix api install && npm --prefix web install",
     "dev": "./scripts/dev.sh",
+    "dev:codespaces": "./scripts/dev-codespaces.sh",
     "dev:api": "npm --prefix api run dev",
     "dev:web": "npm --prefix web run dev",
+    "setup:local": "./setup_in_kind_tracker_local.sh",
+    "setup:codespaces": "./setup_in_kind_tracker_codespaces.sh",
+    "db:setup": "cd db && ./setup_db_local.sh",
     "start:api": "npm --prefix api start",
     "build:web": "npm --prefix web run build",
     "test:api": "npm --prefix api test",

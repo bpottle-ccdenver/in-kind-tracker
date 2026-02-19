@@ -35,6 +35,7 @@ DB_HOST/PORT/NAME/USER/PASSWORD env vars are required for both scripts
 
 db_migrate.sh     # executes the SQL files listed in delta
  db_reset.sh      # wipes and recreates the schema using the full manifest
+ setup_db_local.sh# creates role/db if needed, then runs migrate/reset
  deploy-prod-db.sh# helper for production deployment
 ```
 
@@ -49,8 +50,28 @@ db_migrate.sh     # executes the SQL files listed in delta
   - `DB_USER`
   - `DB_PASSWORD`
 - Optional: `SCHEMA_NAME` (defaults to `in_kind_tracker`) if you want to target a different schema.
+- Optional app-role values:
+  - `APP_DB_USER` (defaults to `in_kind_tracker_app`)
+  - `APP_DB_PASSWORD` (defaults to `password`)
 
 These env vars are the same ones referenced by the helper scripts in the API repo.
+
+## One-command setup helper
+
+`setup_db_local.sh` ensures the app role/database are present, then applies either:
+
+- `BOOTSTRAP_MODE=migrate` (default): run `db_migrate.sh`
+- `BOOTSTRAP_MODE=reset`: reset schema and execute files listed in `full`
+
+Example:
+
+```bash
+cp .env.example .env
+./setup_db_local.sh
+
+# for a clean rebuild
+BOOTSTRAP_MODE=reset ./setup_db_local.sh
+```
 
 ## Initial setup / full reset
 
