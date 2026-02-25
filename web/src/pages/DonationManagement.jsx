@@ -95,7 +95,8 @@ const sortByName = (arr, key = "name") =>
   [...(arr || [])].sort((a, b) => (a?.[key] ?? "").localeCompare(b?.[key] ?? "", undefined, { sensitivity: "base" }));
 
 const defaultDonationFilters = {
-  date_received: "",
+  date_start: "",
+  date_end: "",
   gl_acct: "",
   quantity: "",
   amount: "",
@@ -105,6 +106,15 @@ const defaultDonationFilters = {
   organization_code: "",
   individual: "",
 };
+
+function toComparableDate(value) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return parsed.toISOString().slice(0, 10);
+}
 
 function normalizeSearchTerm(value) {
   return String(value ?? "")
@@ -284,19 +294,22 @@ export default function DonationManagement() {
     const normalizedFilters = Object.fromEntries(
       Object.entries(donationFieldFilters).map(([key, value]) => [key, String(value ?? "").trim().toLowerCase()]),
     );
+    const startDate = toComparableDate(donationFieldFilters.date_start);
+    const endDate = toComparableDate(donationFieldFilters.date_end);
+    const hasDateRangeFilter = Boolean(startDate || endDate);
 
     const filtered = donations.filter((donation) => {
-      const donationDate = donation?.date_received || "";
-      const formattedDate = formatDate(donation?.date_received);
+      const donationDate = toComparableDate(donation?.date_received);
       const quantity = String(donation?.quantity ?? "");
       const amount = String(donation?.amount ?? "");
       const totalFmv = String(getDonationTotalFmv(donation));
       const individualDisplay = getIndividualDisplayName(donation?.individual_id);
+      const inDateRange =
+        !hasDateRangeFilter ||
+        (Boolean(donationDate) && (!startDate || donationDate >= startDate) && (!endDate || donationDate <= endDate));
 
       return (
-        (!normalizedFilters.date_received ||
-          donationDate.toLowerCase().includes(normalizedFilters.date_received) ||
-          formattedDate.toLowerCase().includes(normalizedFilters.date_received)) &&
+        inDateRange &&
         (!normalizedFilters.gl_acct || String(donation?.gl_acct ?? "").toLowerCase().includes(normalizedFilters.gl_acct)) &&
         (!normalizedFilters.quantity || quantity.toLowerCase().includes(normalizedFilters.quantity)) &&
         (!normalizedFilters.amount || amount.toLowerCase().includes(normalizedFilters.amount)) &&
@@ -801,7 +814,18 @@ export default function DonationManagement() {
                 </Button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
-                <Input placeholder="Date" value={donationFieldFilters.date_received} onChange={(e) => handleFilterChange("date_received", e.target.value)} />
+                <Input
+                  type="date"
+                  aria-label="Start date"
+                  value={donationFieldFilters.date_start}
+                  onChange={(e) => handleFilterChange("date_start", e.target.value)}
+                />
+                <Input
+                  type="date"
+                  aria-label="End date"
+                  value={donationFieldFilters.date_end}
+                  onChange={(e) => handleFilterChange("date_end", e.target.value)}
+                />
                 <Input placeholder="GL Code" value={donationFieldFilters.gl_acct} onChange={(e) => handleFilterChange("gl_acct", e.target.value)} />
                 <Input placeholder="Quantity" value={donationFieldFilters.quantity} onChange={(e) => handleFilterChange("quantity", e.target.value)} />
                 <Input placeholder="Amount" value={donationFieldFilters.amount} onChange={(e) => handleFilterChange("amount", e.target.value)} />
