@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Donation, Ministry, Organization, Individual } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -94,6 +94,18 @@ const sortDonations = (list = []) =>
 const sortByName = (arr, key = "name") =>
   [...(arr || [])].sort((a, b) => (a?.[key] ?? "").localeCompare(b?.[key] ?? "", undefined, { sensitivity: "base" }));
 
+const defaultDonationFilters = {
+  date_received: "",
+  gl_acct: "",
+  quantity: "",
+  amount: "",
+  total_fair_market_value: "",
+  description: "",
+  ministry_code: "",
+  organization_code: "",
+  individual: "",
+};
+
 function normalizeSearchTerm(value) {
   return String(value ?? "")
     .trim()
@@ -166,6 +178,8 @@ export default function DonationManagement() {
   const [individualForm, setIndividualForm] = useState(defaultIndividualForm);
   const [individualFormError, setIndividualFormError] = useState("");
   const [isIndividualSubmitting, setIsIndividualSubmitting] = useState(false);
+  const [donationFieldFilters, setDonationFieldFilters] = useState(defaultDonationFilters);
+  const [sortConfig, setSortConfig] = useState({ key: "date_received", direction: "desc" });
   const fileInputRef = useRef(null);
   const { canView, canManage } = usePermission("donation");
   const { canManage: canManageOrganization } = usePermission("organization");
@@ -250,10 +264,115 @@ export default function DonationManagement() {
     return name;
   })();
 
-  const getIndividualDisplayName = (individualId) => {
-    if (individualId == null || individualId === "") return "-";
-    const key = String(individualId);
-    return individualNameById.get(key) || `ID ${key}`;
+  const getIndividualDisplayName = useCallback(
+    (individualId) => {
+      if (individualId == null || individualId === "") return "-";
+      const key = String(individualId);
+      return individualNameById.get(key) || `ID ${key}`;
+    },
+    [individualNameById],
+  );
+
+  const getDonationTotalFmv = (donation) => {
+    if (donation?.total_fair_market_value != null && Number.isFinite(Number(donation.total_fair_market_value))) {
+      return Number(donation.total_fair_market_value);
+    }
+    return Number(donation?.quantity || 0) * Number(donation?.amount || 0);
+  };
+
+  const visibleDonations = useMemo(() => {
+    const normalizedFilters = Object.fromEntries(
+      Object.entries(donationFieldFilters).map(([key, value]) => [key, String(value ?? "").trim().toLowerCase()]),
+    );
+
+    const filtered = donations.filter((donation) => {
+      const donationDate = donation?.date_received || "";
+      const formattedDate = formatDate(donation?.date_received);
+      const quantity = String(donation?.quantity ?? "");
+      const amount = String(donation?.amount ?? "");
+      const totalFmv = String(getDonationTotalFmv(donation));
+      const individualDisplay = getIndividualDisplayName(donation?.individual_id);
+
+      return (
+        (!normalizedFilters.date_received ||
+          donationDate.toLowerCase().includes(normalizedFilters.date_received) ||
+          formattedDate.toLowerCase().includes(normalizedFilters.date_received)) &&
+        (!normalizedFilters.gl_acct || String(donation?.gl_acct ?? "").toLowerCase().includes(normalizedFilters.gl_acct)) &&
+        (!normalizedFilters.quantity || quantity.toLowerCase().includes(normalizedFilters.quantity)) &&
+        (!normalizedFilters.amount || amount.toLowerCase().includes(normalizedFilters.amount)) &&
+        (!normalizedFilters.total_fair_market_value || totalFmv.toLowerCase().includes(normalizedFilters.total_fair_market_value)) &&
+        (!normalizedFilters.description ||
+          String(donation?.description ?? "").toLowerCase().includes(normalizedFilters.description)) &&
+        (!normalizedFilters.ministry_code ||
+          String(donation?.ministry_code ?? "").toLowerCase().includes(normalizedFilters.ministry_code)) &&
+        (!normalizedFilters.organization_code ||
+          String(donation?.organization_code ?? "").toLowerCase().includes(normalizedFilters.organization_code)) &&
+        (!normalizedFilters.individual || individualDisplay.toLowerCase().includes(normalizedFilters.individual))
+      );
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (!sortConfig?.key) {
+        return 0;
+      }
+      const getSortValue = (donation) => {
+        switch (sortConfig.key) {
+          case "date_received":
+            return donation?.date_received || "";
+          case "gl_acct":
+            return donation?.gl_acct || "";
+          case "quantity":
+            return Number(donation?.quantity ?? 0);
+          case "amount":
+            return Number(donation?.amount ?? 0);
+          case "total_fair_market_value":
+            return getDonationTotalFmv(donation);
+          case "description":
+            return donation?.description || "";
+          case "ministry_code":
+            return donation?.ministry_code || "";
+          case "organization_code":
+            return donation?.organization_code || "";
+          case "individual":
+            return getIndividualDisplayName(donation?.individual_id);
+          default:
+            return donation?.[sortConfig.key] ?? "";
+        }
+      };
+
+      const valA = getSortValue(a);
+      const valB = getSortValue(b);
+      let comparison = 0;
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        comparison = valA - valB;
+      } else {
+        comparison = String(valA).localeCompare(String(valB), undefined, { sensitivity: "base", numeric: true });
+      }
+
+      if (comparison === 0) {
+        return (b?.donation_id ?? 0) - (a?.donation_id ?? 0);
+      }
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+  }, [donationFieldFilters, donations, sortConfig, getIndividualDisplayName]);
+
+  const handleFilterChange = (field, value) => {
+    setDonationFieldFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleSort = (field) => {
+    setSortConfig((prev) => {
+      if (prev.key === field) {
+        return { key: field, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key: field, direction: "asc" };
+    });
+  };
+
+  const sortIndicator = (field) => {
+    if (sortConfig.key !== field) return "↕";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
   };
 
   const resetOrganizationForm = () => {
@@ -674,42 +793,59 @@ export default function DonationManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-slate-700">Filter by field</p>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setDonationFieldFilters(defaultDonationFilters)}>
+                  Clear filters
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+                <Input placeholder="Date" value={donationFieldFilters.date_received} onChange={(e) => handleFilterChange("date_received", e.target.value)} />
+                <Input placeholder="GL Code" value={donationFieldFilters.gl_acct} onChange={(e) => handleFilterChange("gl_acct", e.target.value)} />
+                <Input placeholder="Quantity" value={donationFieldFilters.quantity} onChange={(e) => handleFilterChange("quantity", e.target.value)} />
+                <Input placeholder="Amount" value={donationFieldFilters.amount} onChange={(e) => handleFilterChange("amount", e.target.value)} />
+                <Input placeholder="Total FMV" value={donationFieldFilters.total_fair_market_value} onChange={(e) => handleFilterChange("total_fair_market_value", e.target.value)} />
+                <Input placeholder="Description" value={donationFieldFilters.description} onChange={(e) => handleFilterChange("description", e.target.value)} />
+                <Input placeholder="Ministry" value={donationFieldFilters.ministry_code} onChange={(e) => handleFilterChange("ministry_code", e.target.value)} />
+                <Input placeholder="Organization" value={donationFieldFilters.organization_code} onChange={(e) => handleFilterChange("organization_code", e.target.value)} />
+                <Input placeholder="Individual" value={donationFieldFilters.individual} onChange={(e) => handleFilterChange("individual", e.target.value)} />
+              </div>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader className="bg-slate-50">
                   <TableRow>
-                    <TableHead className="w-[90px]">Date</TableHead>
-                    <TableHead className="w-[110px]">GL Code</TableHead>
-                    <TableHead className="w-[90px]">Qty</TableHead>
-                    <TableHead className="w-[110px]">Amount</TableHead>
-                    <TableHead className="w-[140px]">Total FMV</TableHead>
-                    <TableHead>Ministry</TableHead>
-                    <TableHead>Organization</TableHead>
-                    <TableHead>Individual</TableHead>
+                    <TableHead className="w-[90px]"><button type="button" onClick={() => toggleSort("date_received")}>Date {sortIndicator("date_received")}</button></TableHead>
+                    <TableHead className="w-[110px]"><button type="button" onClick={() => toggleSort("gl_acct")}>GL Code {sortIndicator("gl_acct")}</button></TableHead>
+                    <TableHead className="w-[90px]"><button type="button" onClick={() => toggleSort("quantity")}>Qty {sortIndicator("quantity")}</button></TableHead>
+                    <TableHead className="w-[110px]"><button type="button" onClick={() => toggleSort("amount")}>Amount {sortIndicator("amount")}</button></TableHead>
+                    <TableHead className="w-[140px]"><button type="button" onClick={() => toggleSort("total_fair_market_value")}>Total FMV {sortIndicator("total_fair_market_value")}</button></TableHead>
+                    <TableHead><button type="button" onClick={() => toggleSort("description")}>Description {sortIndicator("description")}</button></TableHead>
+                    <TableHead><button type="button" onClick={() => toggleSort("ministry_code")}>Ministry {sortIndicator("ministry_code")}</button></TableHead>
+                    <TableHead><button type="button" onClick={() => toggleSort("organization_code")}>Organization {sortIndicator("organization_code")}</button></TableHead>
+                    <TableHead><button type="button" onClick={() => toggleSort("individual")}>Individual {sortIndicator("individual")}</button></TableHead>
                     {canManage && <TableHead className="w-[160px] text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {donations.length === 0 && (
+                  {visibleDonations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={canManage ? 9 : 8} className="text-center py-10 text-slate-500">
-                        No donations found. Add your first donation to get started.
+                      <TableCell colSpan={canManage ? 10 : 9} className="text-center py-10 text-slate-500">
+                        No donations found for the selected filters.
                       </TableCell>
                     </TableRow>
                   )}
-                  {donations.map((donation) => (
+                  {visibleDonations.map((donation) => (
                     <TableRow key={donation.donation_id}>
                       <TableCell className="text-slate-700">{formatDate(donation.date_received)}</TableCell>
                       <TableCell className="font-mono text-sm text-slate-700">{donation.gl_acct}</TableCell>
                       <TableCell className="text-slate-700">{donation.quantity ?? "—"}</TableCell>
                       <TableCell className="text-slate-700">{formatCurrency(donation.amount)}</TableCell>
                       <TableCell className="text-slate-700">
-                        {formatCurrency(
-                          donation.total_fair_market_value != null && Number.isFinite(donation.total_fair_market_value)
-                            ? donation.total_fair_market_value
-                            : Number(donation.quantity || 0) * Number(donation.amount || 0),
-                        )}
+                        {formatCurrency(getDonationTotalFmv(donation))}
                       </TableCell>
+                      <TableCell className="text-slate-700">{donation.description || "—"}</TableCell>
                       <TableCell className="text-slate-700">{donation.ministry_code || "—"}</TableCell>
                       <TableCell className="text-slate-700">{donation.organization_code || "—"}</TableCell>
                       <TableCell className="text-slate-700">{getIndividualDisplayName(donation.individual_id)}</TableCell>
