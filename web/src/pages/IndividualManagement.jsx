@@ -367,6 +367,7 @@ export default function IndividualManagement() {
           <div>
             <h1 className="text-3xl font-bold text-slate-800">Individual Management</h1>
             <p className="text-slate-600 mt-1">Manage individuals in the In-Kind Tracker.</p>
+            <p className="text-slate-600">Yea! Codex works!</p>
           </div>
           {canManage && (
             <div className="flex flex-wrap items-center gap-2">
